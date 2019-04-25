@@ -34,15 +34,16 @@ class Nodo(object):
 
     def start(self):
         while not rospy.is_shutdown():
-	    # Get distance from sensor
-            self.distance = self.tof.get_distance()
+		# Get distance from sensor
+		self.distance = self.tof.get_distance()
 
-	    # publish sensor data to message
-	    self.ir_sensor_data.distance = self.distance
-	    self.ir_sensor_data_pub.publish(self.ir_sensor_data)
+		# publish sensor data to message
+		if self.distance > 0:
+			self.ir_sensor_data.distance = self.distance
+			self.ir_sensor_data_pub.publish(self.ir_sensor_data)
 
-            # sleep for the remaining time
-            self.loop_rate.sleep()
+		# sleep for the remaining time
+		self.loop_rate.sleep()
 
 if __name__ == '__main__':
     rospy.init_node("IR_sensor", anonymous=True)
