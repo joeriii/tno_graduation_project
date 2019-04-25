@@ -1,0 +1,5 @@
+<launch>
+	<node pkg="drone" name="offb_node" type="offb_node" output = "screen" />
+	<include file="$(find drone)/launch/obstacle_avoidance.launch"/>
+	<include file="$(find mavros)/launch/px4.launch"/>	
+</launch>

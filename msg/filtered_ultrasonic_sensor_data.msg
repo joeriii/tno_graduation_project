@@ -1,0 +1,4 @@
+float32 front_sensor
+float32 right_sensor
+float32 back_sensor
+float32 left_sensor

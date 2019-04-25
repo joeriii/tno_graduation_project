@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+import rospy
+import time
+import Adafruit_ADS1x15
+
+import numpy as np
+import RPi.GPIO as GPIO
+
+from drone.msg import raw_ultrasonic_sensor_data
+from drone.msg import filtered_ultrasonic_sensor_data
+
+
+class Nodo(object):
+    def __init__(self):
+        # Params
+	self.loop_rate = rospy.Rate(10)	# ros loop rate in Hz
+	self.alpha_distance = 0.6
+	self.gain = 1			# ADC gain parameter
+	self.ultrasonic_trigger_pin = 7	# Ultrasonic measurement trigger pin
+
+	# Variables
+	self.values = self.filtered_distance_values = self.filtered_speed_values = np.zeros(4, dtype=np.float32)
+        self.adc = Adafruit_ADS1x15.ADS1115()
+
+	self.adc.gain = self.gain
+	GPIO.setmode(GPIO.BOARD)
+	GPIO.setup(self.ultrasonic_trigger_pin, GPIO.OUT)
+
+	# Message variables
+	self.raw_ultrasonic_sensor_data = raw_ultrasonic_sensor_data()
+	self.filtered_ultrasonic_sensor_data = filtered_ultrasonic_sensor_data()
+
+        # Publishers
+	self.raw_ultrasonic_sensor_data_pub = rospy.Publisher("raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, queue_size=1)
+	self.filtered_ultrasonic_sensor_data_pub = rospy.Publisher("filtered_ultrasonic_sensor_data", filtered_ultrasonic_sensor_data, queue_size=1)
+
+        # Subscribers
+
+    def start(self):
+
+        while not rospy.is_shutdown():
+
+		# Give the ultrasonic sensors the measurement trigger
+		GPIO.output(self.ultrasonic_trigger_pin, GPIO.HIGH)
+		time.sleep(0.001)
+		GPIO.output(self.ultrasonic_trigger_pin, GPIO.LOW)
+		time.sleep(0.099)
+
+		for i in range(4):
+	               	# Read the specified ADC channel
+                	self.values[i] = self.adc.read_adc(i)
+
+		# Use a low pass filter algorithm to remove noise
+		self.filtered_distance_values = self.values + self.alpha_distance * (self.filtered_distance_values - self.values)
+
+		# publish sensor data to message
+		self.raw_ultrasonic_sensor_data.front_sensor = self.values[1] / 1.83
+		self.raw_ultrasonic_sensor_data.right_sensor = self.values[3] / 1.83
+		self.raw_ultrasonic_sensor_data.back_sensor = self.values[2] / 1.83
+		self.raw_ultrasonic_sensor_data.left_sensor = self.values[0] / 1.83
+		self.filtered_ultrasonic_sensor_data.front_sensor = self.filtered_distance_values[1] / 1.83
+		self.filtered_ultrasonic_sensor_data.right_sensor = self.filtered_distance_values[3] / 1.83
+		self.filtered_ultrasonic_sensor_data.back_sensor = self.filtered_distance_values[2] / 1.83
+		self.filtered_ultrasonic_sensor_data.left_sensor = self.filtered_distance_values[0] / 1.83
+
+		self.raw_ultrasonic_sensor_data_pub.publish(self.raw_ultrasonic_sensor_data)
+		self.filtered_ultrasonic_sensor_data_pub.publish(self.filtered_ultrasonic_sensor_data)
+
+            	# sleep for the remaining time
+            	self.loop_rate.sleep()
+
+    def on_shutdown(self):
+	GPIO.cleanup(self.ultrasonic_trigger_pin)
+
+
+if __name__ == '__main__':
+    rospy.init_node("Ultrasonic_sensor", anonymous=True)
+    my_node = Nodo()
+    rospy.on_shutdown(my_node.on_shutdown)
+    my_node.start()
