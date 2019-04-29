@@ -52,7 +52,8 @@ find_package(catkin REQUIRED COMPONENTS
  add_message_files(
    FILES
    raw_ultrasonic_sensor_data.msg
-   filtered_ultrasonic_sensor_data.msg
+   median_filtered_ultrasonic_sensor_data.msg
+   low_pass_filtered_ultrasonic_sensor_data.msg
    ir_sensor_data.msg
    obstacle_detection_state.msg
  )

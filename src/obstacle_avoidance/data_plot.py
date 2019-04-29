@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from drone.msg import raw_ultrasonic_sensor_data
-from drone.msg import filtered_ultrasonic_sensor_data
+from drone.msg import median_filtered_ultrasonic_sensor_data
+from drone.msg import low_pass_filtered_ultrasonic_sensor_data
 
 import matplotlib
 matplotlib.use('Agg')
@@ -15,8 +16,10 @@ class Nodo(object):
 		# Params
 		self.raw = 0
 		self.raw_data = []
-		self.filtered = 0
-		self.filtered_data = []
+		self.median_filtered = 0
+		self.median_filtered_data = []
+		self.low_pass_filtered = 0
+		self.low_pass_filtered_data = []
 		self.x = []
 		self.i = 0
 
@@ -26,34 +29,39 @@ class Nodo(object):
 		# Publishers
 
 		# Subscribers
-		rospy.Subscriber("current_angles", raw_ultrasonic_sensor_data, self.raw_callback)
-		rospy.Subscriber("target_angles", filtered_ultrasonic_sensor_data, self.filtered_callback)
+		rospy.Subscriber("raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, self.raw_callback)
+		rospy.Subscriber("median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.median_filtered_callback)
+		rospy.Subscriber("low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, self.low_pass_filtered_callback)
 
 		# Services
 
 	def raw_callback(self, msg):
 		self.raw = int(msg.back_sensor)
 
-	def filtered_callback(self, msg):
-		self.filtered = int(msg.back_sensor)
+	def median_filtered_callback(self, msg):
+		self.median_filtered = int(msg.back_sensor)
+
+	def low_pass_filtered_callback(self, msg):
+		self.low_pass_filtered = int(msg.back_sensor)
 
 
 	def start(self):
+		time.sleep(4)
 		while not rospy.is_shutdown():
-			self.x.append(self.i * 10)
+			self.x.append(self.i * 100)
 			self.raw_data.append(self.raw)
-			self.filtered_data.append(self.filtered)
-
+			self.median_filtered_data.append(self.median_filtered)
+			self.low_pass_filtered_data.append(self.low_pass_filtered)
 			self.i += 1
 			self.loop_rate.sleep()
-			if self.i == 500:
+			if self.i == 100:
 				print("plotting")
-				#plt.xkcd()
 				fig, ax = plt.subplots()
-				ax.set(xlabel='Time (ms)', ylabel='Pulses (steps)', title="Ultrasonic low pass filter")
+				ax.set(xlabel='Time (ms)', ylabel='distance (mm)', title="Ultrasonic filters")
 
-				ax.plot(self.x, self.raw_data, label='Current angle left', linewidth=1.5)
-				ax.plot(self.x, self.filtered_data, label='Target angle left', linewidth=1.5)
+				ax.plot(self.x, self.raw_data, label='raw data', linewidth=1.5)
+				ax.plot(self.x, self.median_filtered_data, label='Median filtered data', linewidth=1.5)
+				ax.plot(self.x, self.low_pass_filtered_data, label='Low pass filtered data', linewidth=1.5)
 
 				art = []
 				lgd = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=2, fancybox=True, shadow=True)
@@ -66,12 +74,12 @@ class Nodo(object):
 				ax.grid(which='minor', linestyle=':', linewidth='0.5', alpha=0.3)
 				plt.tick_params(which='both', top='off', right='off')
 				axes = plt.gca()
-				axes.set_ylim([-5500,5500])
+#				axes.set_ylim([0, 3000])
 				art.append(lgd)
-				fig.savefig('/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot.jpg')
+				fig.savefig('/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot_' + str(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())) + '.jpg', additional_artist=art, bbox_inches='tight')
 				print("plotting complete")
 
 if __name__ == '__main__':
-	rospy.init_node("Save_new_position", anonymous=True)
+	rospy.init_node("data_plot", anonymous=True)
 	my_node = Nodo()
 	my_node.start()
