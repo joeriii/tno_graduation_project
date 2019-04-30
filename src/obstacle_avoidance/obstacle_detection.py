@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-from drone.msg import filtered_ultrasonic_sensor_data
+from drone.msg import median_filtered_ultrasonic_sensor_data
 from drone.msg import ir_sensor_data
 from drone.msg import obstacle_detection_state
+from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import Twist
 import time
 import math
 import rospy
@@ -23,52 +25,99 @@ class Nodo(object):
 
 		self.safe_us_distance = rospy.get_param("/safe_us_distance")
 		self.safe_ir_distance = rospy.get_param("/safe_ir_distance")
-		self.state = 0
+		self.safe_lidar_distance = rospy.get_param("/safe_lidar_distance")
+
+		self.ir_data = np.zeros(4, dtype=np.float32)
+		self.ultrasonic_data = np.indices((1, 4), dtype=np.float32)
+		self.ultrasonic_data[1] = [180, 90, 0, 270]
+		np.radians(self.ultrasonic_data[1], out=self.ultrasonic_data[1])
+
+		self.lidar_data = np.indices((1, 683), dtype=np.float32)
+		np.multiply(self.lidar_data[1], (240 / 683.0), out=self.lidar_data[1])
+		np.radians(self.lidar_data[1], out=self.lidar_data[1])
+		np.add(self.lidar_data[1], np.radians(60), out=self.lidar_data[1])
+
+		self.ir_avoidance = np.zeros(3, dtype=np.float32)
+		self.lidar_avoidance = np.zeros(3, dtype=np.float32)
+		self.ultrasonic_avoidance = np.zeros(3, dtype=np.float32)
+		self.total_avoidance = Twist()
 
 		# Message variables
 		self.obstacle_detection_state = obstacle_detection_state()
 
 		# Publishers
 		self.obstacle_detection_state_pub = rospy.Publisher("obstacle_detection_state", obstacle_detection_state, queue_size=1)
+		self.avoidance_pub = rospy.Publisher("avoidance_twist", Twist, queue_size=1)
+
 		# Subscribers
-		rospy.Subscriber("filtered_ultrasonic_sensor_data", filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
+		rospy.Subscriber("median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
 		rospy.Subscriber("ir_sensor_data", ir_sensor_data, self.ir_sensor_data_callback)
+		rospy.Subscriber("scan", LaserScan, self.lidar_scan_callback)
+
+	def lidar_scan_callback(self, msg):
+		start_time = time.time()
+		self.lidar_data[0] = msg.ranges
+		np.multiply(self.lidar_data[0], 1000, out=self.lidar_data[0])
+		lidar_avoidance_indices = np.where((self.lidar_data[0][0] < self.safe_lidar_distance) & (self.lidar_data[0][0] > 30))
+		lidar_avoidance = self.lidar_avoidance_formula(np.take(self.lidar_data[0], lidar_avoidance_indices[0]))
+		lidar_angles = np.take(self.lidar_data[1], lidar_avoidance_indices[0])
+
+		lidar_x = np.sum(-lidar_avoidance * np.sin(lidar_angles))
+		lidar_y = np.sum(lidar_avoidance * np.cos(lidar_angles))
+		self.lidar_avoidance = [lidar_x, lidar_y, 0]
+		loop_time = (time.time() - start_time) * 1000
+		print("loop took " + format(loop_time, '.2f') + "ms")
+		print(self.lidar_avoidance)
+		print(" ")
 
 
 	def ultrasonic_sensor_data_callback(self, msg):
-		self.us_distances = np.roll(self.us_distances, 1, axis=1)
-		self.us_distances[:, 0] = [msg.front_sensor, msg.right_sensor, msg.back_sensor, msg.left_sensor]
-		self.us_diff = np.diff(self.us_distances)
-		self.us_average_dist = np.average(self.us_distances, axis=1, weights=range(self.data_length, 0, -1))
-		self.us_average_diff = np.average(self.us_diff, axis=1, weights=range(self.data_length-1, 0, -1))
+		start_time = time.time()
+		self.ultrasonic_data[0] = np.array([msg.front_sensor, msg.right_sensor, msg.back_sensor, msg.left_sensor])
+		ultrasonic_avoidance_indices = np.where(self.ultrasonic_data[0][0] < self.safe_us_distance)
+		ultrasonic_avoidance = self.avoidance_formula(np.take(self.ultrasonic_data[0], ultrasonic_avoidance_indices[0]))
+		ultrasonic_angles = np.take(self.ultrasonic_data[1], ultrasonic_avoidance_indices[0])
+
+		ultrasonic_x = np.sum(-ultrasonic_avoidance * np.sin(ultrasonic_angles))
+		ultrasonic_y = np.sum(ultrasonic_avoidance * np.cos(ultrasonic_angles))
+		self.ultrasonic_avoidance = [ultrasonic_x, ultrasonic_y, 0]
+		loop_time = (time.time() - start_time) * 1000
+#		print("front | right | back | left")
+#		print(self.ultrasonic_data[0][0])
+#		print(ultrasonic_avoidance_indices[0])
+#		print(ultrasonic_avoidance)
+#		print(angles)
+#		print(x)
+#		print(y)
+#		print("ultrasonic avoidance vector:")
+#		print(self.ultrasonic_avoidance)
+#		print(" ")
+
+#		print("loop took " + format(loop_time, '.2f') + "ms")
+#		print(" ")
 
 	def ir_sensor_data_callback(self, msg):
-		self.ir_distances = np.roll(self.ir_distances, 1)
-		self.ir_distances[0] = msg.distance
-		self.ir_diff = np.diff(self.ir_distances)
+		self.ir_data = msg.distance
 
-	def print_data(self):
-		print("state: ", self.state)
-		print("Front   Right   Back   Left")
-		print(self.us_distances[:, 0])
-		print(self.us_diff[:, 0])
-		print("Infrared")
-		print(self.ir_distances[0])
-		print("\n")
-
-	def determine_state(self):
-		if((self.us_distances[:, 0] < self.safe_us_distance).sum() > 0 or ( self.ir_distances[0] < self.safe_ir_distance).sum() > 0):
-			self.state = 1
-
+		if self.ir_data < self.safe_ir_distance:
+			self.ir_avoidance = [0, 0, -self.avoidance_formula(self.ir_data)]
 		else:
-			self.state = 0
-		self.obstacle_detection_state.state = self.state
-		self.obstacle_detection_state_pub.publish(self.obstacle_detection_state)
+			self.ir_avoidance = [0, 0, 0]
+
+	def avoidance_formula(self, distance):
+		return 2000 * np.exp(-0.0075 * distance)
+
+	def lidar_avoidance_formula(self, distance):
+		return np.exp(-0.0075 * distance)
 
 	def start(self):
 		while not rospy.is_shutdown():
-			self.determine_state()
-# 			self.print_data()
+			total_avoidance = np.add(self.ultrasonic_avoidance, self.ir_avoidance)
+#			print("total avoidance: " + str(total_avoidance))
+			self.total_avoidance.linear.x = total_avoidance[0]
+			self.total_avoidance.linear.y = total_avoidance[1]
+			self.total_avoidance.linear.z = total_avoidance[2]
+			self.avoidance_pub.publish(self.total_avoidance)
 			self.loop_rate.sleep()
 
 if __name__ == '__main__':

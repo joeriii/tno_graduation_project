@@ -1,9 +1,9 @@
 <launch>
-	<param name="safe_us_distance" type="int" value="1250" />
-	<param name="safe_ir_distance" type="int" value="400" />
+	<param name="safe_us_distance" type="int" value="1000" />
+	<param name="safe_ir_distance" type="int" value="1000" />
+	<param name="safe_lidar_distance" type="int" value="1000" />
 	<node pkg="drone" name="ultrasonic_sensor" type="ultrasonic_sensor.py" output = "screen" />
 	<node pkg="drone" name="ir_sensor" type="ir_sensor.py" output = "screen" />
-	<node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" />
+	<!-- <node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" /> -->
 	<node pkg="drone" name="obstacle_detection" type="obstacle_detection.py" output = "screen" />
-	<node pkg="drone" name="obstacle_avoidance" type="obstacle_avoidance.py" output = "screen" />	
 </launch>
