@@ -12,7 +12,7 @@ from drone.msg import low_pass_filtered_ultrasonic_sensor_data
 
 class Median_filter(object):
     def __init__(self):
-        self.data_length = 3
+        self.data_length = 5
         self.data = np.zeros((4, self.data_length))
 
     def update(self, measurement):
