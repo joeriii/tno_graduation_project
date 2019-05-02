@@ -69,20 +69,20 @@ class Nodo(object):
                 self.median_filtered_distance_values = self.median_filter.update(self.values)
 
 		# publish sensor data to message
-		self.raw_ultrasonic_sensor_data.front_sensor = self.values[1]
-                self.raw_ultrasonic_sensor_data.right_sensor = self.values[3]
+		self.raw_ultrasonic_sensor_data.front_sensor = self.values[0]
+                self.raw_ultrasonic_sensor_data.right_sensor = self.values[1]
 		self.raw_ultrasonic_sensor_data.back_sensor = self.values[2]
-		self.raw_ultrasonic_sensor_data.left_sensor = self.values[0]
+		self.raw_ultrasonic_sensor_data.left_sensor = self.values[3]
 
-                self.median_filtered_ultrasonic_sensor_data.front_sensor = self.median_filtered_distance_values[1]
-		self.median_filtered_ultrasonic_sensor_data.right_sensor = self.median_filtered_distance_values[3]
+                self.median_filtered_ultrasonic_sensor_data.front_sensor = self.median_filtered_distance_values[0]
+		self.median_filtered_ultrasonic_sensor_data.right_sensor = self.median_filtered_distance_values[1]
 		self.median_filtered_ultrasonic_sensor_data.back_sensor = self.median_filtered_distance_values[2]
-		self.median_filtered_ultrasonic_sensor_data.left_sensor = self.median_filtered_distance_values[0]
+		self.median_filtered_ultrasonic_sensor_data.left_sensor = self.median_filtered_distance_values[3]
 
-                self.low_pass_filtered_ultrasonic_sensor_data.front_sensor = self.low_pass_filtered_distance_values[1]
-		self.low_pass_filtered_ultrasonic_sensor_data.right_sensor = self.low_pass_filtered_distance_values[3]
+                self.low_pass_filtered_ultrasonic_sensor_data.front_sensor = self.low_pass_filtered_distance_values[0]
+		self.low_pass_filtered_ultrasonic_sensor_data.right_sensor = self.low_pass_filtered_distance_values[1]
 		self.low_pass_filtered_ultrasonic_sensor_data.back_sensor = self.low_pass_filtered_distance_values[2]
-		self.low_pass_filtered_ultrasonic_sensor_data.left_sensor = self.low_pass_filtered_distance_values[0]
+		self.low_pass_filtered_ultrasonic_sensor_data.left_sensor = self.low_pass_filtered_distance_values[3]
 
 
 		self.raw_ultrasonic_sensor_data_pub.publish(self.raw_ultrasonic_sensor_data)
