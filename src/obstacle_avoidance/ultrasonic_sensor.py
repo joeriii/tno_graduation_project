@@ -43,9 +43,9 @@ class Nodo(object):
 	self.low_pass_filtered_ultrasonic_sensor_data = low_pass_filtered_ultrasonic_sensor_data()
 
         # Publishers
-	self.raw_ultrasonic_sensor_data_pub = rospy.Publisher("raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, queue_size=1)
-	self.median_filtered_ultrasonic_sensor_data_pub = rospy.Publisher("median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, queue_size=1)
-	self.low_pass_filtered_ultrasonic_sensor_data_pub = rospy.Publisher("low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, queue_size=1)
+	self.raw_ultrasonic_sensor_data_pub = rospy.Publisher("drone/raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, queue_size=1)
+	self.median_filtered_ultrasonic_sensor_data_pub = rospy.Publisher("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, queue_size=1)
+	self.low_pass_filtered_ultrasonic_sensor_data_pub = rospy.Publisher("drone/low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, queue_size=1)
 
         # Subscribers
 

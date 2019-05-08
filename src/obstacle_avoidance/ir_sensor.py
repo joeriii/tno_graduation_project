@@ -28,7 +28,7 @@ class Nodo(object):
 	self.ir_sensor_data = ir_sensor_data()
 
         # Publishers
-	self.ir_sensor_data_pub = rospy.Publisher("ir_sensor_data", ir_sensor_data, queue_size=1)
+	self.ir_sensor_data_pub = rospy.Publisher("drone/ir_sensor_data", ir_sensor_data, queue_size=1)
 
         # Subscribers
 

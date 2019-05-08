@@ -32,9 +32,9 @@ class Nodo(object):
 		# Publishers
 
 		# Subscribers
-		rospy.Subscriber("raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, self.raw_callback)
-		rospy.Subscriber("median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.median_filtered_callback)
-		rospy.Subscriber("low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, self.low_pass_filtered_callback)
+		rospy.Subscriber("drone/raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, self.raw_callback)
+		rospy.Subscriber("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.median_filtered_callback)
+		rospy.Subscriber("drone/low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, self.low_pass_filtered_callback)
 
 		# Services
 
