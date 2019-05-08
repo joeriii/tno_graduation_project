@@ -46,12 +46,11 @@ class Nodo(object):
 		self.obstacle_detection_state = obstacle_detection_state()
 
 		# Publishers
-		self.obstacle_detection_state_pub = rospy.Publisher("obstacle_detection_state", obstacle_detection_state, queue_size=1)
-		self.avoidance_pub = rospy.Publisher("avoidance_twist", Twist, queue_size=1)
+		self.avoidance_pub = rospy.Publisher("drone/obstacle_avoidance_velocity", Twist, queue_size=1)
 
 		# Subscribers
-		rospy.Subscriber("median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
-		rospy.Subscriber("ir_sensor_data", ir_sensor_data, self.ir_sensor_data_callback)
+		rospy.Subscriber("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
+		rospy.Subscriber("drone/ir_sensor_data", ir_sensor_data, self.ir_sensor_data_callback)
 		rospy.Subscriber("scan", LaserScan, self.lidar_scan_callback)
 
 	def lidar_scan_callback(self, msg):
@@ -66,9 +65,9 @@ class Nodo(object):
 		lidar_y = np.sum(lidar_avoidance * np.cos(lidar_angles))
 		self.lidar_avoidance = [lidar_x, lidar_y, 0]
 		loop_time = (time.time() - start_time) * 1000
-		print("loop took " + format(loop_time, '.2f') + "ms")
-		print(self.lidar_avoidance)
-		print(" ")
+#		print("loop took " + format(loop_time, '.2f') + "ms")
+#		print(self.lidar_avoidance)
+#		print(" ")
 
 
 	def ultrasonic_sensor_data_callback(self, msg):
@@ -105,18 +104,21 @@ class Nodo(object):
 			self.ir_avoidance = [0, 0, 0]
 
 	def avoidance_formula(self, distance):
-		return 2000 * np.exp(-0.0075 * distance)
+		return 10 * np.exp(-0.005 * distance)
 
 	def lidar_avoidance_formula(self, distance):
-		return np.exp(-0.0075 * distance)
+		return 0.05 * np.exp(-0.005 * distance)
 
 	def start(self):
 		while not rospy.is_shutdown():
-			total_avoidance = np.add(self.ultrasonic_avoidance, self.ir_avoidance)
+			total_avoidance = np.sum([self.ultrasonic_avoidance, self.ir_avoidance, self.lidar_avoidance], axis=0)
 #			print("total avoidance: " + str(total_avoidance))
-			self.total_avoidance.linear.x = total_avoidance[0]
-			self.total_avoidance.linear.y = total_avoidance[1]
-			self.total_avoidance.linear.z = total_avoidance[2]
+#			self.total_avoidance.linear.x = total_avoidance[0]
+#			self.total_avoidance.linear.y = total_avoidance[1]
+#			self.total_avoidance.linear.z = total_avoidance[2]
+			self.total_avoidance.linear.x = 0
+			self.total_avoidance.linear.y = 0
+			self.total_avoidance.linear.z = 0
 			self.avoidance_pub.publish(self.total_avoidance)
 			self.loop_rate.sleep()
 
