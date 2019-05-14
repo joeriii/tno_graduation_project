@@ -61,6 +61,7 @@ class Nodo(object):
 		lidar_avoidance = self.lidar_avoidance_formula(np.take(self.lidar_data[0], lidar_avoidance_indices[0]))
 		lidar_angles = np.take(self.lidar_data[1], lidar_avoidance_indices[0])
 
+
 		lidar_x = np.sum(-lidar_avoidance * np.sin(lidar_angles))
 		lidar_y = np.sum(lidar_avoidance * np.cos(lidar_angles))
 		self.lidar_avoidance = [lidar_x, lidar_y, 0]
@@ -112,7 +113,7 @@ class Nodo(object):
 	def start(self):
 		while not rospy.is_shutdown():
 			total_avoidance = np.sum([self.ultrasonic_avoidance, self.ir_avoidance, self.lidar_avoidance], axis=0)
-#			print("total avoidance: " + str(total_avoidance))
+			print("total avoidance: " + str(total_avoidance))
 #			self.total_avoidance.linear.x = total_avoidance[0]
 #			self.total_avoidance.linear.y = total_avoidance[1]
 #			self.total_avoidance.linear.z = total_avoidance[2]
