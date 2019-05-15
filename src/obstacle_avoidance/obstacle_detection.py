@@ -62,14 +62,15 @@ class Nodo(object):
 			if len(avoidance_data[0]) > 1:
 				closest_distance = np.min(avoidance_data)
 #				print("closest_distance: ", closest_distance)
-				lidar_x = np.sum(-closest_distance * np.sin(angle))
-				lidar_y = np.sum(closest_distance * np.cos(angle))
+				avoidance = self.lidar_avoidance_formula(closest_distance)
+				lidar_x += np.sum(-avoidance * np.sin(angle))
+				lidar_y += np.sum(avoidance * np.cos(angle))
 				angle += np.radians(30)
-
+		print(lidar_x, lidar_y)
 		self.lidar_avoidance = [lidar_x, lidar_y, 0]
 		loop_time = (time.time() - start_time) * 1000
-		print("loop took " + format(loop_time, '.2f') + "ms")
-		print(" ")
+#		print("loop took " + format(loop_time, '.2f') + "ms")
+#		print(" ")
 
 
 	def ultrasonic_sensor_data_callback(self, msg):
@@ -115,12 +116,12 @@ class Nodo(object):
 		while not rospy.is_shutdown():
 			total_avoidance = np.sum([self.ultrasonic_avoidance, self.ir_avoidance, self.lidar_avoidance], axis=0)
 #			print("total avoidance: " + str(total_avoidance))
-#			self.total_avoidance.linear.x = total_avoidance[0]
-#			self.total_avoidance.linear.y = total_avoidance[1]
-#			self.total_avoidance.linear.z = total_avoidance[2]
-			self.total_avoidance.linear.x = 0
-			self.total_avoidance.linear.y = 0
-			self.total_avoidance.linear.z = 0
+			self.total_avoidance.linear.x = total_avoidance[0]
+			self.total_avoidance.linear.y = total_avoidance[1]
+			self.total_avoidance.linear.z = total_avoidance[2]
+#			self.total_avoidance.linear.x = 0
+#			self.total_avoidance.linear.y = 0
+#			self.total_avoidance.linear.z = 0
 			self.avoidance_pub.publish(self.total_avoidance)
 			self.loop_rate.sleep()
 
