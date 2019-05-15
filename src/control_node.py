@@ -41,60 +41,64 @@ class Nodo(object):
 
 	def start(self):
         	# wait for FCU connection
+		print("waiting for FCU connection")
 		while not rospy.is_shutdown() and not self.current_state.connected:
 			self.loop_rate.sleep()
 
-	        self.pose.pose.position.x = 0
-	        self.pose.pose.position.y = 0
-	        self.pose.pose.position.z = 0
+		if self.current_state.connected:
+			print("Connected with FCU")
 
-        	# send a few setpoints before starting
-	        for i in range(100):
-			self.local_pos_pub.publish(self.pose)
-			self.loop_rate.sleep()
+		        # Set board to 'offboard' mode
+			self.set_offboard()
+		        # Arm drone
+			self.arm_drone()
 
-	        # Set board to 'offboard' mode
-		self.set_offboard()
+			while not rospy.is_shutdown():
+				if self.current_state.mode != "OFFBOARD":
+					self.set_offboard()
+				if not self.current_state.armed:
+					self.arm_drone()
 
-	        # Arm drone
-		self.arm_drone()
-
-		while not rospy.is_shutdown():
-			if self.current_state.mode != "OFFBOARD":
-				self.set_offboard()
-			if not self.current_state.armed:
-				self.arm_drone()
-
-			self.set_velocity_pub.publish(self.velocity)
-			self.loop_rate.sleep()
+				self.set_velocity_pub.publish(self.velocity)
+				self.loop_rate.sleep()
 
 	def set_offboard(self):
-	        set_mode_response = self.set_mode_client(custom_mode="OFFBOARD")
-		if set_mode_response.mode_sent:
-			self.current_state.mode = "OFFBOARD"
-		        print("OFFBOARD Mode set succesful")
-		else:
-			print("OFFBOARD Mode set failed")
+		try:
+			rospy.wait_for_service('mavros/set_mode', timeout=0.1)
+	        	set_mode_response = self.set_mode_client(custom_mode="OFFBOARD")
+			if set_mode_response.mode_sent:
+				self.current_state.mode = "OFFBOARD"
+			        print("OFFBOARD Mode set succesful")
+			else:
+				print("OFFBOARD Mode set failed")
+		except (rospy.ServiceException, rospy.ROSException), exc:
+			print("Service did not process request: " + str(exc))
 
 	def arm_drone(self):
 		try:
+			rospy.wait_for_service('mavros/cmd/arming', timeout=0.1)
 			arming_response = self.arming_client(value=True)
 			if arming_response.success:
 				self.current_state.armed = True
 				print("Arming succesfull")
 			else:
 				 print("Arming failed")
-		except:
-			print("Arming failed")
+
+		except (rospy.ServiceException, rospy.ROSException), exc:
+			print("Service did not process request: " + str(exc))
 
 	def disarm_drone(self):
-		dis_arming_response = self.arming_client(value=False)
-		if arming_response.success:
-			self.current_state.armed = False
-			print("Disarming succesfull")
-		else:
-			 print("Disarming failed")
+		try:
+			rospy.wait_for_service('mavros/cmd/arming', timeout=0.1)
+			arming_response = self.arming_client(value=False)
+			if arming_response.success:
+				self.current_state.armed = False
+				print("Disarming succesfull")
+			else:
+				 print("Disarming failed")
 
+		except (rospy.ServiceException, rospy.ROSException), exc:
+			print("Service did not process request: " + str(exc))
 
 	def on_shutdown(self):
 		self.disarm_drone()
