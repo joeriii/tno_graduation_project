@@ -1,5 +1,4 @@
 <launch>
 	<node pkg="drone" name="control_node" type="control_node.py" output = "screen" />
 	<include file="$(find drone)/launch/obstacle_avoidance.launch"/>
-	<include file="$(find urg_node)/launch/urg_lidar.launch"/>
 </launch>
