@@ -6,7 +6,8 @@
 
 	<node pkg="drone" name="ultrasonic_sensor" type="ultrasonic_sensor.py" output = "screen" />
 	<node pkg="drone" name="ir_sensor" type="ir_sensor.py" output = "screen" />
-	<node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" />
+	<!-- <node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" /> -->
 	<node pkg="drone" name="obstacle_detection" type="obstacle_detection.py" output = "screen" />
+	<node pkg="drone" name="live_plot" type="live_plot.py" output = "screen" />
 	<include file="$(find urg_node)/launch/urg_lidar.launch"/>
 </launch>

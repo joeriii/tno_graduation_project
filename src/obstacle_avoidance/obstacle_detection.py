@@ -13,7 +13,7 @@ import numpy as np
 class Nodo(object):
 	def __init__(self):
 		# Params
-		self.loop_rate = rospy.Rate(20)
+		self.loop_rate = rospy.Rate(10)
 		self.data_length = 5
 
 		# Variables
@@ -42,13 +42,11 @@ class Nodo(object):
 		self.lidar_y = np.array([0])
 
 		self.total_avoidance = Twist()
-
 		# Message variables
 		self.obstacle_detection_state = obstacle_detection_state()
 
 		# Publishers
 		self.avoidance_pub = rospy.Publisher("drone/obstacle_avoidance_velocity", Twist, queue_size=1)
-
 		# Subscribers
 		rospy.Subscriber("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
 		rospy.Subscriber("drone/ir_sensor_data", ir_sensor_data, self.ir_sensor_data_callback)
@@ -82,7 +80,7 @@ class Nodo(object):
 	def ir_sensor_data_callback(self, msg):
 		self.ir_data = msg.distance
 
-		if self.ir_data < self.safe_ir_distance:
+		if 100 < self.ir_data < self.safe_ir_distance:
 			self.ir_avoidance = [0, 0, -self.avoidance_formula(self.ir_data, self.safe_ir_distance)]
 		else:
 			self.ir_avoidance = [0, 0, 0]
@@ -98,11 +96,11 @@ class Nodo(object):
 #			print(self.ultrasonic_x)
 #			print(self.ultrasonic_y)
 #			print("")
+
 			lidar_x_min = np.min(self.lidar_x) if np.min(self.lidar_x) < 0 else 0
 			lidar_x_max = np.max(self.lidar_x) if np.max(self.lidar_x) > 0 else 0
 			lidar_y_min = np.min(self.lidar_y) if np.min(self.lidar_y) < 0 else 0
 			lidar_y_max = np.max(self.lidar_y) if np.max(self.lidar_y) > 0 else 0
-
 			us_x_min = np.min(self.ultrasonic_x) if np.min(self.ultrasonic_x) < 0 else 0
 			us_x_max = np.max(self.ultrasonic_x) if np.max(self.ultrasonic_x) > 0 else 0
 			us_y_min = np.min(self.ultrasonic_y) if np.min(self.ultrasonic_y) < 0 else 0
@@ -114,7 +112,7 @@ class Nodo(object):
 			total_avoidance_y_max = np.max([lidar_y_max, us_y_max])
 
 			total_avoidance = [total_avoidance_x_min + total_avoidance_x_max, total_avoidance_y_min + total_avoidance_y_max, self.ir_avoidance[2]]
-#			print("total avoidance: " + str(total_avoidance))
+			print("total avoidance: " + str(total_avoidance))
 			self.total_avoidance.linear.x = total_avoidance[0]
 			self.total_avoidance.linear.y = total_avoidance[1]
 			self.total_avoidance.linear.z = total_avoidance[2]
