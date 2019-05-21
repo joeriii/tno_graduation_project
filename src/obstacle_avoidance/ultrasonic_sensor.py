@@ -57,7 +57,7 @@ class Nodo(object):
 		GPIO.output(self.ultrasonic_trigger_pin, GPIO.HIGH)
 		time.sleep(0.001)
 		GPIO.output(self.ultrasonic_trigger_pin, GPIO.LOW)
-		time.sleep(0.099)
+		time.sleep(0.199)
 
 		for i in range(4):
 	               	# Read the specified ADC channel

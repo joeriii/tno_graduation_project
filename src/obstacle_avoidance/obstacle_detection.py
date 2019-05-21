@@ -15,28 +15,32 @@ class Nodo(object):
 		# Params
 		self.loop_rate = rospy.Rate(20)
 		self.data_length = 5
+
 		# Variables
-		self.us_distances = np.zeros((4, self.data_length), dtype=np.float32)
-		self.ir_distances = np.zeros(self.data_length, dtype=np.float32)
+		self.safe_us_distance = rospy.get_param("/drone/obstacle_detection/safe_us_distance")
+		self.safe_ir_distance = rospy.get_param("/drone/obstacle_detection/safe_ir_distance")
+		self.safe_lidar_distance = rospy.get_param("/drone/obstacle_detection/safe_lidar_distance")
+		self.max_avoidance = rospy.get_param("/drone/obstacle_detection/max_avoidance")
 
-		self.us_diff = np.zeros((4, self.data_length - 1), dtype=np.float32)
-		self.us_average_dist = np.zeros((4, 1), dtype=np.float32)
-		self.us_average_diff = np.zeros((4, 1), dtype=np.float32)
-
-		self.safe_us_distance = rospy.get_param("/safe_us_distance")
-		self.safe_ir_distance = rospy.get_param("/safe_ir_distance")
-		self.safe_lidar_distance = rospy.get_param("/safe_lidar_distance")
-
+		# Ir data
 		self.ir_data = np.zeros(4, dtype=np.float32)
+		self.ir_avoidance = np.zeros(3, dtype=np.float32)
+
+		# Ultrasonic data
 		self.ultrasonic_data = np.indices((1, 4), dtype=np.float32)
 		self.ultrasonic_data[1] = [180, 90, 0, 270]
 		np.radians(self.ultrasonic_data[1], out=self.ultrasonic_data[1])
+		self.ultrasonic_x = np.array([0])
+		self.ultrasonic_y = np.array([0])
 
-		self.lidar_data = np.zeros(680, dtype=np.float32)
+		# Lidar data
+		self.lidar_data = np.indices((1, 683), dtype=np.float32)
+		np.multiply(self.lidar_data[1], (240 / 683.0), out=self.lidar_data[1])
+		np.radians(self.lidar_data[1], out=self.lidar_data[1])
+		np.add(self.lidar_data[1], np.radians(60), out=self.lidar_data[1])
+		self.lidar_x = np.array([0])
+		self.lidar_y = np.array([0])
 
-		self.ir_avoidance = np.zeros(3, dtype=np.float32)
-		self.lidar_avoidance = np.zeros(3, dtype=np.float32)
-		self.ultrasonic_avoidance = np.zeros(3, dtype=np.float32)
 		self.total_avoidance = Twist()
 
 		# Message variables
@@ -51,70 +55,65 @@ class Nodo(object):
 		rospy.Subscriber("scan", LaserScan, self.lidar_scan_callback)
 
 	def lidar_scan_callback(self, msg):
-		start_time = time.time()
-		self.lidar_data = np.multiply(msg.ranges, 1000)
-		lidar_section_data = np.split(self.lidar_data, 8)
-		lidar_x = lidar_y = 0
-		angle = np.radians(75)
-		for section in lidar_section_data:
-			# Filter nan and inf values from lidar data
-			avoidance_data = np.take(section, np.where((section < self.safe_lidar_distance) & (section > 30)))
-			if len(avoidance_data[0]) > 1:
-				closest_distance = np.min(avoidance_data)
-#				print("closest_distance: ", closest_distance)
-				avoidance = self.lidar_avoidance_formula(closest_distance)
-				lidar_x += np.sum(-avoidance * np.sin(angle))
-				lidar_y += np.sum(avoidance * np.cos(angle))
-				angle += np.radians(30)
-		print(lidar_x, lidar_y)
-		self.lidar_avoidance = [lidar_x, lidar_y, 0]
-		loop_time = (time.time() - start_time) * 1000
-#		print("loop took " + format(loop_time, '.2f') + "ms")
-#		print(" ")
-
+		self.lidar_data[0] = msg.ranges
+		np.multiply(self.lidar_data[0], 1000, out=self.lidar_data[0])
+		lidar_avoidance_indices = np.where((self.lidar_data[0][0] < self.safe_lidar_distance) & (self.lidar_data[0][0] > 30))
+		lidar_avoidance = self.avoidance_formula(np.take(self.lidar_data[0], lidar_avoidance_indices[0]), self.safe_lidar_distance)
+		lidar_angles = np.take(self.lidar_data[1], lidar_avoidance_indices[0])
+		if len(lidar_angles) > 0:
+			self.lidar_x = -lidar_avoidance * np.sin(lidar_angles)
+			self.lidar_y = lidar_avoidance * np.cos(lidar_angles)
+		else:
+			self.lidar_x = np.array([0])
+			self.lidar_y = np.array([0])
 
 	def ultrasonic_sensor_data_callback(self, msg):
-		start_time = time.time()
 		self.ultrasonic_data[0] = np.array([msg.front_sensor, msg.right_sensor, msg.back_sensor, msg.left_sensor])
 		ultrasonic_avoidance_indices = np.where(self.ultrasonic_data[0][0] < self.safe_us_distance)
-		ultrasonic_avoidance = self.avoidance_formula(np.take(self.ultrasonic_data[0], ultrasonic_avoidance_indices[0]))
+		ultrasonic_avoidance = self.avoidance_formula(np.take(self.ultrasonic_data[0], ultrasonic_avoidance_indices[0]), self.safe_us_distance)
 		ultrasonic_angles = np.take(self.ultrasonic_data[1], ultrasonic_avoidance_indices[0])
-
-		ultrasonic_x = np.sum(-ultrasonic_avoidance * np.sin(ultrasonic_angles))
-		ultrasonic_y = np.sum(ultrasonic_avoidance * np.cos(ultrasonic_angles))
-		self.ultrasonic_avoidance = [ultrasonic_x, ultrasonic_y, 0]
-		loop_time = (time.time() - start_time) * 1000
-#		print("front | right | back | left")
-#		print(self.ultrasonic_data[0][0])
-#		print(ultrasonic_avoidance_indices[0])
-#		print(ultrasonic_avoidance)
-#		print(angles)
-#		print(x)
-#		print(y)
-#		print("ultrasonic avoidance vector:")
-#		print(self.ultrasonic_avoidance)
-#		print(" ")
-
-#		print("loop took " + format(loop_time, '.2f') + "ms")
-#		print(" ")
+		if len(ultrasonic_angles) > 0:
+			self.ultrasonic_x = -ultrasonic_avoidance * np.sin(ultrasonic_angles)
+			self.ultrasonic_y = ultrasonic_avoidance * np.cos(ultrasonic_angles)
+		else:
+			self.ultrasonic_x = np.array([0])
+			self.ultrasonic_y = np.array([0])
 
 	def ir_sensor_data_callback(self, msg):
 		self.ir_data = msg.distance
 
 		if self.ir_data < self.safe_ir_distance:
-			self.ir_avoidance = [0, 0, -self.avoidance_formula(self.ir_data)]
+			self.ir_avoidance = [0, 0, -self.avoidance_formula(self.ir_data, self.safe_ir_distance)]
 		else:
 			self.ir_avoidance = [0, 0, 0]
 
-	def avoidance_formula(self, distance):
-		return 10.0 * np.exp(-0.005 * distance)
+	def avoidance_formula(self, distance, safe_distance):
+		return -(self.max_avoidance / safe_distance) * distance + self.max_avoidance
 
-	def lidar_avoidance_formula(self, distance):
-		return 0.05 * np.exp(-0.005 * distance)
 
 	def start(self):
 		while not rospy.is_shutdown():
-			total_avoidance = np.sum([self.ultrasonic_avoidance, self.ir_avoidance, self.lidar_avoidance], axis=0)
+#			print(self.lidar_x)
+#			print(self.lidar_y)
+#			print(self.ultrasonic_x)
+#			print(self.ultrasonic_y)
+#			print("")
+			lidar_x_min = np.min(self.lidar_x) if np.min(self.lidar_x) < 0 else 0
+			lidar_x_max = np.max(self.lidar_x) if np.max(self.lidar_x) > 0 else 0
+			lidar_y_min = np.min(self.lidar_y) if np.min(self.lidar_y) < 0 else 0
+			lidar_y_max = np.max(self.lidar_y) if np.max(self.lidar_y) > 0 else 0
+
+			us_x_min = np.min(self.ultrasonic_x) if np.min(self.ultrasonic_x) < 0 else 0
+			us_x_max = np.max(self.ultrasonic_x) if np.max(self.ultrasonic_x) > 0 else 0
+			us_y_min = np.min(self.ultrasonic_y) if np.min(self.ultrasonic_y) < 0 else 0
+			us_y_max = np.max(self.ultrasonic_y) if np.max(self.ultrasonic_y) > 0 else 0
+
+			total_avoidance_x_min = np.min([lidar_x_min, us_x_min])
+			total_avoidance_x_max = np.max([lidar_x_max, us_x_max])
+			total_avoidance_y_min = np.min([lidar_y_min, us_y_min])
+			total_avoidance_y_max = np.max([lidar_y_max, us_y_max])
+
+			total_avoidance = [total_avoidance_x_min + total_avoidance_x_max, total_avoidance_y_min + total_avoidance_y_max, self.ir_avoidance[2]]
 #			print("total avoidance: " + str(total_avoidance))
 			self.total_avoidance.linear.x = total_avoidance[0]
 			self.total_avoidance.linear.y = total_avoidance[1]

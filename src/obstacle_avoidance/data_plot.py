@@ -17,6 +17,8 @@ class Nodo(object):
 		# Params
 		self.raw = 0
 		self.raw_data = []
+		self.raw_csv_data = raw_ultrasonic_sensor_data()
+		self.filtered_csv_data = median_filtered_ultrasonic_sensor_data()
 		self.median_filtered = 0
 		self.median_filtered_data = []
 		self.low_pass_filtered = 0
@@ -24,7 +26,8 @@ class Nodo(object):
 		self.x = []
 		self.i = 0
 		self.csv_data = []
-		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot_' + str(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/static_ultrasonic_plot_'
+#		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot_' + str(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 		# Node cycle rate (in Hz)
 		self.loop_rate = rospy.Rate(10)
@@ -40,9 +43,11 @@ class Nodo(object):
 
 	def raw_callback(self, msg):
 		self.raw = int(msg.back_sensor)
+		self.raw_csv_data = msg
 
 	def median_filtered_callback(self, msg):
 		self.median_filtered = int(msg.back_sensor)
+		self.filtered_csv_data = msg
 
 	def low_pass_filtered_callback(self, msg):
 		self.low_pass_filtered = int(msg.back_sensor)
@@ -50,15 +55,16 @@ class Nodo(object):
 
 	def start(self):
 		time.sleep(4)
-		while not rospy.is_shutdown() and self.i < 100:
+		while not rospy.is_shutdown() and self.i < 600:
 			self.x.append(self.i * 100)
 			self.raw_data.append(self.raw)
 			self.median_filtered_data.append(self.median_filtered)
 			self.low_pass_filtered_data.append(self.low_pass_filtered)
-			self.csv_data.append([self.raw, self.median_filtered, self.low_pass_filtered])
+			self.csv_data.append([self.raw_csv_data.front_sensor, self.raw_csv_data.right_sensor, self.raw_csv_data.back_sensor, self.raw_csv_data.left_sensor,
+					      self.filtered_csv_data.front_sensor, self.filtered_csv_data.right_sensor, self.filtered_csv_data.back_sensor, self.filtered_csv_data.left_sensor])
 			self.i += 1
 			self.loop_rate.sleep()
-			if self.i == 100:
+			if self.i == 600:
 				print("plotting")
 				fig, ax = plt.subplots()
 				ax.set(xlabel='Time (ms)', ylabel='distance (mm)', title="Ultrasonic filters")
