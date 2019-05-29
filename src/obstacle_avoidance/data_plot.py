@@ -5,7 +5,7 @@ import rospy
 import time
 import datetime
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 from drone.msg import raw_ultrasonic_sensor_data
 from drone.msg import median_filtered_ultrasonic_sensor_data
@@ -26,7 +26,7 @@ class Nodo(object):
 		self.x = []
 		self.i = 0
 		self.csv_data = []
-		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/static_ultrasonic_plot_'
+		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/spinning3_ultrasonic_plot_'
 #		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot_' + str(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 		# Node cycle rate (in Hz)
@@ -64,7 +64,7 @@ class Nodo(object):
 					      self.filtered_csv_data.front_sensor, self.filtered_csv_data.right_sensor, self.filtered_csv_data.back_sensor, self.filtered_csv_data.left_sensor])
 			self.i += 1
 			self.loop_rate.sleep()
-			if self.i == 600:
+			if self.i == 50:
 				print("plotting")
 				fig, ax = plt.subplots()
 				ax.set(xlabel='Time (ms)', ylabel='distance (mm)', title="Ultrasonic filters")
@@ -87,11 +87,12 @@ class Nodo(object):
 #				axes.set_ylim([0, 3000])
 				art.append(lgd)
 				fig.savefig(self.filename + '.jpg', additional_artist=art, bbox_inches='tight')
+				fig.show()
 				print("plotting complete")
 
 				print("writing data to csv")
 				with open(self.filename + '.csv', mode='w') as position_file:
-					position_writer = csv.writer(position_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+					position_writer = csv.writer(position_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 					position_writer.writerows(self.csv_data)
 				print("writing complete")
 if __name__ == '__main__':
