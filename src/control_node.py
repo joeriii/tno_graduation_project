@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import rospy
-
+import time
 from geometry_msgs.msg import PoseStamped, Twist
 from mavros_msgs.msg import State
 from mavros_msgs.srv import CommandBool, SetMode
@@ -44,7 +44,8 @@ class Nodo(object):
 		print("waiting for FCU connection")
 		while not rospy.is_shutdown() and not self.current_state.connected:
 			self.loop_rate.sleep()
-
+		print("ARMING DRONE OVER 5 SECONDS!!!!")
+		time.sleep(5)
         	# send a few setpoints before starting
 	        for i in range(100):
 			self.set_velocity_pub.publish(self.velocity)

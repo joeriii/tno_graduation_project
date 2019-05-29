@@ -56,6 +56,7 @@ find_package(catkin REQUIRED COMPONENTS
    low_pass_filtered_ultrasonic_sensor_data.msg
    ir_sensor_data.msg
    obstacle_detection_state.msg
+   bottom_sensor.msg
  )
 
 # Generate services in the 'srv' folder
