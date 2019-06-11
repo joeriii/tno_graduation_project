@@ -7,6 +7,9 @@ import datetime
 import matplotlib
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
+from sensor_msgs.msg import LaserScan
 from drone.msg import raw_ultrasonic_sensor_data
 from drone.msg import median_filtered_ultrasonic_sensor_data
 from drone.msg import low_pass_filtered_ultrasonic_sensor_data
@@ -15,87 +18,86 @@ from drone.msg import low_pass_filtered_ultrasonic_sensor_data
 class Nodo(object):
 	def __init__(self):
 		# Params
-		self.raw = 0
-		self.raw_data = []
-		self.raw_csv_data = raw_ultrasonic_sensor_data()
-		self.filtered_csv_data = median_filtered_ultrasonic_sensor_data()
-		self.median_filtered = 0
-		self.median_filtered_data = []
-		self.low_pass_filtered = 0
-		self.low_pass_filtered_data = []
-		self.x = []
-		self.i = 0
-		self.csv_data = []
-		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/spinning3_ultrasonic_plot_'
-#		self.filename = '/home/pi/catkin_ws/src/tno_drone/plots/ultrasonic_plot_' + str(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+		self.loop_rate = rospy.Rate(20)
+		self.data_length = 5
 
-		# Node cycle rate (in Hz)
-		self.loop_rate = rospy.Rate(10)
+		# Variables
+		self.safe_us_distance = rospy.get_param("/drone/obstacle_detection/safe_us_distance")
+		self.safe_ir_distance = rospy.get_param("/drone/obstacle_detection/safe_ir_distance")
+		self.safe_bottom_sensor_distance = rospy.get_param("/drone/obstacle_detection/safe_bottom_sensor_distance")
+		self.safe_lidar_distance = rospy.get_param("/drone/obstacle_detection/safe_lidar_distance")
+		self.max_avoidance = rospy.get_param("/drone/obstacle_detection/max_avoidance")
+		self.max_throttle = rospy.get_param("/drone/obstacle_detection/max_throttle")
 
-		# Publishers
+		# Ir data
+		self.ir_data = np.zeros(4, dtype=np.float32)
+		self.ir_avoidance = np.zeros(3, dtype=np.float32)
+
+		# bottom sensor data
+		self.bottom_sensor_data = np.zeros(4, dtype=np.float32)
+		self.bottom_sensor_avoidance = np.zeros(3, dtype=np.float32)
+
+
+		# Ultrasonic data
+		self.ultrasonic_data = np.indices((1, 4), dtype=np.float32)
+		self.ultrasonic_data[1] = [180, 90, 0, 270]
+		np.radians(self.ultrasonic_data[1], out=self.ultrasonic_data[1])
+		self.ultrasonic_x = np.array([0])
+		self.ultrasonic_y = np.array([0])
+
+		# Lidar data
+		self.lidar_data = np.indices((1, 683), dtype=np.float32)
+		np.multiply(self.lidar_data[1], (240 / 683.0), out=self.lidar_data[1])
+		np.radians(self.lidar_data[1], out=self.lidar_data[1])
+		np.add(self.lidar_data[1], np.radians(60), out=self.lidar_data[1])
+		self.lidar_x = np.array([0])
+		self.lidar_y = np.array([0])
+
+		self.fig = plt.figure()
+		self.ax = self.fig.add_subplot(111)
 
 		# Subscribers
-		rospy.Subscriber("drone/raw_ultrasonic_sensor_data", raw_ultrasonic_sensor_data, self.raw_callback)
-		rospy.Subscriber("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.median_filtered_callback)
-		rospy.Subscriber("drone/low_pass_filtered_ultrasonic_sensor_data", low_pass_filtered_ultrasonic_sensor_data, self.low_pass_filtered_callback)
-
-		# Services
-
-	def raw_callback(self, msg):
-		self.raw = int(msg.back_sensor)
-		self.raw_csv_data = msg
-
-	def median_filtered_callback(self, msg):
-		self.median_filtered = int(msg.back_sensor)
-		self.filtered_csv_data = msg
-
-	def low_pass_filtered_callback(self, msg):
-		self.low_pass_filtered = int(msg.back_sensor)
+		rospy.Subscriber("drone/median_filtered_ultrasonic_sensor_data", median_filtered_ultrasonic_sensor_data, self.ultrasonic_sensor_data_callback)
+		rospy.Subscriber("scan", LaserScan, self.lidar_scan_callback)
 
 
-	def start(self):
-		time.sleep(4)
-		while not rospy.is_shutdown() and self.i < 600:
-			self.x.append(self.i * 100)
-			self.raw_data.append(self.raw)
-			self.median_filtered_data.append(self.median_filtered)
-			self.low_pass_filtered_data.append(self.low_pass_filtered)
-			self.csv_data.append([self.raw_csv_data.front_sensor, self.raw_csv_data.right_sensor, self.raw_csv_data.back_sensor, self.raw_csv_data.left_sensor,
-					      self.filtered_csv_data.front_sensor, self.filtered_csv_data.right_sensor, self.filtered_csv_data.back_sensor, self.filtered_csv_data.left_sensor])
-			self.i += 1
-			self.loop_rate.sleep()
-			if self.i == 50:
-				print("plotting")
-				fig, ax = plt.subplots()
-				ax.set(xlabel='Time (ms)', ylabel='distance (mm)', title="Ultrasonic filters")
+	def lidar_scan_callback(self, msg):
+		self.lidar_data[0] = msg.ranges
+		np.multiply(self.lidar_data[0], 1000, out=self.lidar_data[0])
+		lidar_avoidance_indices = np.where((self.lidar_data[0][0] < self.safe_lidar_distance) & (self.lidar_data[0][0] > 30))
+		#lidar_avoidance = np.take(self.lidar_data[0], lidar_avoidance_indices[0])
+		lidar_angles = np.take(self.lidar_data[1], lidar_avoidance_indices[0])
+		if len(lidar_angles) > 0:
+			self.lidar_x = -self.lidar_data[0][0] * np.sin(self.lidar_data[1][0])
+			self.lidar_y = self.lidar_data[0][0] * np.cos(self.lidar_data[1][0])
+		else:
+			self.lidar_x = np.array([0])
+			self.lidar_y = np.array([0])
 
-				ax.plot(self.x, self.raw_data, label='raw data', linewidth=1.5)
-				ax.plot(self.x, self.median_filtered_data, label='Median filtered data', linewidth=1.5)
-				ax.plot(self.x, self.low_pass_filtered_data, label='Low pass filtered data', linewidth=1.5)
+	def ultrasonic_sensor_data_callback(self, msg):
+		self.ultrasonic_data[0] = np.array([msg.front_sensor, msg.right_sensor, msg.back_sensor, msg.left_sensor])
+		ultrasonic_avoidance_indices = np.where(self.ultrasonic_data[0][0] < self.safe_us_distance)
+		ultrasonic_avoidance = np.take(self.ultrasonic_data[0], ultrasonic_avoidance_indices[0])
+		ultrasonic_angles = np.take(self.ultrasonic_data[1], ultrasonic_avoidance_indices[0])
+		if len(ultrasonic_angles) > 0:
+			self.ultrasonic_x = -ultrasonic_avoidance * np.sin(ultrasonic_angles)
+			self.ultrasonic_y = ultrasonic_avoidance * np.cos(ultrasonic_angles)
+		else:
+			self.ultrasonic_x = np.array([0])
+			self.ultrasonic_y = np.array([0])
 
-				art = []
-				lgd = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=2, fancybox=True, shadow=True)
-				ax.spines['top'].set_visible(False)
-				ax.spines['right'].set_visible(False)
-				plt.minorticks_on()
-				ax.xaxis.set_tick_params(top='off', direction='out', width=1)
-				ax.yaxis.set_tick_params(top='off', direction='out', width=1)
-				ax.grid(which='major', linestyle='-', linewidth='0.5', alpha=0.5)
-				ax.grid(which='minor', linestyle=':', linewidth='0.5', alpha=0.3)
-				plt.tick_params(which='both', top='off', right='off')
-				axes = plt.gca()
-#				axes.set_ylim([0, 3000])
-				art.append(lgd)
-				fig.savefig(self.filename + '.jpg', additional_artist=art, bbox_inches='tight')
-				fig.show()
-				print("plotting complete")
+	def animate(self, i):
+		if rospy.is_shutdown():
+			plt.close()
+		self.ax.clear()
+		self.ax.set_xlim(-1000, 1000)
+		self.ax.set_ylim(-1000, 1000)
+		self.ax.plot(self.lidar_x, self.lidar_y, 'ro', linewidth=0.5)
+		self.ax.plot(self.ultrasonic_x, self.ultrasonic_y, 'bo', linewidth=1.0)
 
-				print("writing data to csv")
-				with open(self.filename + '.csv', mode='w') as position_file:
-					position_writer = csv.writer(position_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-					position_writer.writerows(self.csv_data)
-				print("writing complete")
 if __name__ == '__main__':
 	rospy.init_node("data_plot", anonymous=True)
 	my_node = Nodo()
-	my_node.start()
+	ani = animation.FuncAnimation(my_node.fig, my_node.animate, interval=100)
+	plt.title("test")
+	plt.show()

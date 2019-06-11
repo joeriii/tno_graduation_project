@@ -1,8 +1,8 @@
 <launch>
-	<param name="/drone/obstacle_detection/safe_us_distance" type="double" value="1500" />
+	<param name="/drone/obstacle_detection/safe_us_distance" type="double" value="800" />
 	<param name="/drone/obstacle_detection/safe_ir_distance" type="double" value="1000" />
 	<param name="/drone/obstacle_detection/safe_bottom_sensor_distance" type="double" value="500" />
-	<param name="/drone/obstacle_detection/safe_lidar_distance" type="double" value="1200" />
+	<param name="/drone/obstacle_detection/safe_lidar_distance" type="double" value="800" />
 	<param name="/drone/obstacle_detection/max_throttle" type="double" value="1.5" />
 	<param name="/drone/obstacle_detection/max_avoidance" type="double" value="3" />
 	
@@ -10,7 +10,7 @@
 	<node pkg="drone" name="ultrasonic_sensor" type="ultrasonic_sensor.py" output = "screen" />
 	<node pkg="drone" name="ir_sensor" type="ir_sensor.py" output = "screen" />
 	<node pkg="drone" name="bottom_sensor" type="bottom_sensor.py" output = "screen" />
-	<!-- <node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" /> -->
+	<node pkg="drone" name="data_plot" type="data_plot.py" output = "screen" />
 	<node pkg="drone" name="obstacle_detection" type="obstacle_detection.py" output = "screen" />
 	<!-- <node pkg="drone" name="live_plot" type="live_plot.py" output = "screen" /> -->
 	<include file="$(find urg_node)/launch/urg_lidar.launch"/>
