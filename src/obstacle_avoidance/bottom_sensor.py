@@ -28,8 +28,9 @@ class Nodo(object):
             self.distance = self.tf.read()
 
 	    # publish sensor data to message
-	    self.bottom_sensor.distance = self.distance
-	    self.bottom_sensor_data_pub.publish(self.bottom_sensor)
+	    if self.distance:
+		    self.bottom_sensor.distance = self.distance
+		    self.bottom_sensor_data_pub.publish(self.bottom_sensor)
 
             # sleep for the remaining time
             self.loop_rate.sleep()

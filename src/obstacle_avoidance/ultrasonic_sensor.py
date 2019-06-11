@@ -11,7 +11,7 @@ from drone.msg import median_filtered_ultrasonic_sensor_data
 
 class Median_filter(object):
     def __init__(self):
-        self.data_length = 5
+        self.data_length = 4
         self.data = np.zeros((4, self.data_length))
 
     def update(self, measurement):
@@ -52,45 +52,40 @@ class Nodo(object):
     def start(self):
 
         while not rospy.is_shutdown():
-		if self.state == 0:
-			# Give the ultrasonic sensors the measurement trigger
-			GPIO.output(self.ultrasonic_trigger_pin_fb, GPIO.HIGH)
-			time.sleep(0.001)
-			GPIO.output(self.ultrasonic_trigger_pin_fb, GPIO.LOW)
-#			time.sleep(0.049)
+		# Give the ultrasonic sensors the measurement trigger
+		GPIO.output(self.ultrasonic_trigger_pin_fb, GPIO.HIGH)
+		time.sleep(0.001)
+		GPIO.output(self.ultrasonic_trigger_pin_fb, GPIO.LOW)
+		time.sleep(0.049)
 
-	               	# Read the specified ADC channel
-                	self.values[0] = self.adc.read_adc(0) / 1.83
-                	self.values[2] = self.adc.read_adc(2) / 1.83
-			self.raw_ultrasonic_sensor_data.front_sensor = self.values[0]
-			self.raw_ultrasonic_sensor_data.back_sensor = self.values[2]
+               	# Read the specified ADC channel
+        	self.values[0] = (self.adc.read_adc(0) / 4.5) * 2.54
+        	self.values[2] = (self.adc.read_adc(2) / 4.5) * 2.54
+		self.raw_ultrasonic_sensor_data.front_sensor = self.values[0]
+		self.raw_ultrasonic_sensor_data.back_sensor = self.values[2]
 
-	                # Use a median filter algorithm to remove noise
-        	        self.median_filtered_distance_values = self.median_filter.update(self.values)
-	                self.median_filtered_ultrasonic_sensor_data.front_sensor = self.median_filtered_distance_values[0]
-			self.median_filtered_ultrasonic_sensor_data.back_sensor = self.median_filtered_distance_values[2]
+                # Use a median filter algorithm to remove noise
+	        self.median_filtered_distance_values = self.median_filter.update(self.values)
+                self.median_filtered_ultrasonic_sensor_data.front_sensor = self.median_filtered_distance_values[0]
+		self.median_filtered_ultrasonic_sensor_data.back_sensor = self.median_filtered_distance_values[2]
 
-			self.state = 1
-		else:
-			# Give the ultrasonic sensors the measurement trigger
-			GPIO.output(self.ultrasonic_trigger_pin_lr, GPIO.HIGH)
-			time.sleep(0.001)
-			GPIO.output(self.ultrasonic_trigger_pin_lr, GPIO.LOW)
-#			time.sleep(0.049)
+		# Give the ultrasonic sensors the measurement trigger
+		GPIO.output(self.ultrasonic_trigger_pin_lr, GPIO.HIGH)
+		time.sleep(0.001)
+		GPIO.output(self.ultrasonic_trigger_pin_lr, GPIO.LOW)
+		time.sleep(0.049)
 
-	               	# Read the specified ADC channel
-                	self.values[1] = self.adc.read_adc(1) / 1.83
-                	self.values[3] = self.adc.read_adc(3) / 1.83
+               	# Read the specified ADC channel
+        	self.values[1] = (self.adc.read_adc(1) / 4.5) * 2.54
+        	self.values[3] = (self.adc.read_adc(3) / 4.5) * 2.54
 
-                	self.raw_ultrasonic_sensor_data.right_sensor = self.values[1]
-			self.raw_ultrasonic_sensor_data.left_sensor = self.values[3]
+        	self.raw_ultrasonic_sensor_data.right_sensor = self.values[1]
+		self.raw_ultrasonic_sensor_data.left_sensor = self.values[3]
 
-	                # Use a median filter algorithm to remove noise
-        	        self.median_filtered_distance_values = self.median_filter.update(self.values)
-			self.median_filtered_ultrasonic_sensor_data.right_sensor = self.median_filtered_distance_values[1]
-			self.median_filtered_ultrasonic_sensor_data.left_sensor = self.median_filtered_distance_values[3]
-
-			self.state = 0
+                # Use a median filter algorithm to remove noise
+	        self.median_filtered_distance_values = self.median_filter.update(self.values)
+		self.median_filtered_ultrasonic_sensor_data.right_sensor = self.median_filtered_distance_values[1]
+		self.median_filtered_ultrasonic_sensor_data.left_sensor = self.median_filtered_distance_values[3]
 
 		self.raw_ultrasonic_sensor_data_pub.publish(self.raw_ultrasonic_sensor_data)
 		self.median_filtered_ultrasonic_sensor_data_pub.publish(self.median_filtered_ultrasonic_sensor_data)
